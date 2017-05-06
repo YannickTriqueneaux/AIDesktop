@@ -1,0 +1,14 @@
+C:\Users\Yannick\Documents\Visual Studio 2015\Projects\DXGI desktop duplication sample\CSDisplay\bin\Debug\CSDisplay.exe.config
+C:\Users\Yannick\Documents\Visual Studio 2015\Projects\DXGI desktop duplication sample\CSDisplay\bin\Debug\CSDisplay.exe
+C:\Users\Yannick\Documents\Visual Studio 2015\Projects\DXGI desktop duplication sample\CSDisplay\bin\Debug\CSDisplay.pdb
+C:\Users\Yannick\Documents\Visual Studio 2015\Projects\DXGI desktop duplication sample\CSDisplay\obj\Debug\CSDisplay.csprojResolveAssemblyReference.cache
+C:\Users\Yannick\Documents\Visual Studio 2015\Projects\DXGI desktop duplication sample\CSDisplay\obj\Debug\MainWindow.g.cs
+C:\Users\Yannick\Documents\Visual Studio 2015\Projects\DXGI desktop duplication sample\CSDisplay\obj\Debug\App.g.cs
+C:\Users\Yannick\Documents\Visual Studio 2015\Projects\DXGI desktop duplication sample\CSDisplay\obj\Debug\CSDisplay_MarkupCompile.cache
+C:\Users\Yannick\Documents\Visual Studio 2015\Projects\DXGI desktop duplication sample\CSDisplay\obj\Debug\CSDisplay_MarkupCompile.lref
+C:\Users\Yannick\Documents\Visual Studio 2015\Projects\DXGI desktop duplication sample\CSDisplay\obj\Debug\MainWindow.baml
+C:\Users\Yannick\Documents\Visual Studio 2015\Projects\DXGI desktop duplication sample\CSDisplay\obj\Debug\CSDisplay.g.resources
+C:\Users\Yannick\Documents\Visual Studio 2015\Projects\DXGI desktop duplication sample\CSDisplay\obj\Debug\CSDisplay.Properties.Resources.resources
+C:\Users\Yannick\Documents\Visual Studio 2015\Projects\DXGI desktop duplication sample\CSDisplay\obj\Debug\CSDisplay.csproj.GenerateResource.Cache
+C:\Users\Yannick\Documents\Visual Studio 2015\Projects\DXGI desktop duplication sample\CSDisplay\obj\Debug\CSDisplay.exe
+C:\Users\Yannick\Documents\Visual Studio 2015\Projects\DXGI desktop duplication sample\CSDisplay\obj\Debug\CSDisplay.pdb
