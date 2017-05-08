@@ -24,6 +24,7 @@ class OUTPUTMANAGER
         ~OUTPUTMANAGER();
         DUPL_RETURN InitOutput(HWND Window, INT SingleOutput, _Out_ UINT* OutCount, _Out_ RECT* DeskBounds);
         DUPL_RETURN UpdateApplicationWindow(_In_ PTR_INFO* PointerInfo, _Inout_ bool* Occluded);
+        DUPL_RETURN ExtractPostRenderToSharedMemory(_In_ PTR_INFO* PointerInfo, _Inout_ bool* Occluded);
         void CleanRefs();
         HANDLE GetSharedHandle();
         void WindowResize();
@@ -37,6 +38,7 @@ class OUTPUTMANAGER
         DUPL_RETURN InitGeometry();
         DUPL_RETURN CreateSharedSurf(INT SingleOutput, _Out_ UINT* OutCount, _Out_ RECT* DeskBounds);
         DUPL_RETURN DrawFrame();
+        DUPL_RETURN CopyFrameToSharedMemory();
         DUPL_RETURN DrawMouse(_In_ PTR_INFO* PtrInfo);
         DUPL_RETURN ResizeSwapChain();
 
@@ -53,6 +55,8 @@ class OUTPUTMANAGER
         ID3D11InputLayout* m_InputLayout;
         ID3D11Texture2D* m_SharedSurf;
         IDXGIKeyedMutex* m_KeyMutex;
+        ID3D11Texture2D* m_PostRenderSurf;
+        IDXGIKeyedMutex* m_PostRenderKeyMutex;
         HWND m_WindowHandle;
         bool m_NeedsResize;
         DWORD m_OcclusionCookie;

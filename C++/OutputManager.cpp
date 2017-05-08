@@ -23,6 +23,8 @@ OUTPUTMANAGER::OUTPUTMANAGER() : m_SwapChain(nullptr),
                                  m_InputLayout(nullptr),
                                  m_SharedSurf(nullptr),
                                  m_KeyMutex(nullptr),
+                                 m_PostRenderSurf(nullptr),
+                                 m_PostRenderKeyMutex(nullptr),
                                  m_WindowHandle(nullptr),
                                  m_NeedsResize(false),
                                  m_OcclusionCookie(0)
@@ -349,6 +351,47 @@ DUPL_RETURN OUTPUTMANAGER::CreateSharedSurf(INT SingleOutput, _Out_ UINT* OutCou
         return ProcessFailure(m_Device, L"Failed to query for keyed mutex in OUTPUTMANAGER", L"Error", hr);
     }
 
+    // Create shared texture for all duplication threads to draw into
+    D3D11_TEXTURE2D_DESC PostRenderTexD;
+    RtlZeroMemory(&PostRenderTexD, sizeof(D3D11_TEXTURE2D_DESC));
+    PostRenderTexD.Width = DeskBounds->right - DeskBounds->left;
+    PostRenderTexD.Height = DeskBounds->bottom - DeskBounds->top;
+    PostRenderTexD.MipLevels = 1;
+    PostRenderTexD.ArraySize = 1;
+    PostRenderTexD.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    PostRenderTexD.SampleDesc.Count = 1;
+    PostRenderTexD.Usage = D3D11_USAGE_STAGING;
+    PostRenderTexD.BindFlags = 0;
+    PostRenderTexD.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    PostRenderTexD.MiscFlags = D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX;
+
+    hr = m_Device->CreateTexture2D(&PostRenderTexD, nullptr, &m_PostRenderSurf);
+    if (FAILED(hr))
+    {
+        if (OutputCount != 1)
+        {
+            // If we are duplicating the complete desktop we try to create a single texture to hold the
+            // complete desktop image and blit updates from the per output DDA interface.  The GPU can
+            // always support a texture size of the maximum resolution of any single output but there is no
+            // guarantee that it can support a texture size of the desktop.
+            // The sample only use this large texture to display the desktop image in a single window using DX
+            // we could revert back to using GDI to update the window in this failure case.
+            return ProcessFailure(m_Device, L"Failed to create DirectX shared texture - we are attempting to create a texture the size of the complete desktop and this may be larger than the maximum texture size of your GPU.  Please try again using the -output command line parameter to duplicate only 1 monitor or configure your computer to a single monitor configuration", L"Error", hr, SystemTransitionsExpectedErrors);
+        }
+        else
+        {
+            return ProcessFailure(m_Device, L"Failed to create shared texture", L"Error", hr, SystemTransitionsExpectedErrors);
+        }
+    }
+
+    // Get keyed mutex
+    hr = m_SharedSurf->QueryInterface(__uuidof(IDXGIKeyedMutex), reinterpret_cast<void**>(&m_PostRenderKeyMutex));
+    if (FAILED(hr))
+    {
+        return ProcessFailure(m_Device, L"Failed to query for keyed mutex in OUTPUTMANAGER", L"Error", hr);
+    }
+
+
     return DUPL_RETURN_SUCCESS;
 }
 
@@ -393,6 +436,8 @@ DUPL_RETURN OUTPUTMANAGER::UpdateApplicationWindow(_In_ PTR_INFO* PointerInfo, _
         return ProcessFailure(m_Device, L"Failed to Release Keyed mutex in OUTPUTMANAGER", L"Error", hr, SystemTransitionsExpectedErrors);
     }
 
+
+
     // Present to window if all worked
     if (Ret == DUPL_RETURN_SUCCESS)
     {
@@ -410,6 +455,39 @@ DUPL_RETURN OUTPUTMANAGER::UpdateApplicationWindow(_In_ PTR_INFO* PointerInfo, _
 
     return Ret;
 }
+
+DUPL_RETURN OUTPUTMANAGER::UpdateApplicationWindow(_In_ PTR_INFO* PointerInfo, _Inout_ bool* Occluded)
+{
+    // In a typical desktop duplication application there would be an application running on one system collecting the desktop images
+    // and another application running on a different system that receives the desktop images via a network and display the image. This
+    // sample contains both these aspects into a single application.
+    // This routine is the part of the sample that displays the desktop image onto the display
+
+    // Try and acquire sync on common display buffer
+    HRESULT hr = m_PostRenderKeyMutex->AcquireSync(1, 100);
+    if (hr == static_cast<HRESULT>(WAIT_TIMEOUT))
+    {
+        // Another thread has the keyed mutex so try again later
+        return DUPL_RETURN_SUCCESS;
+    }
+    else if (FAILED(hr))
+    {
+        return ProcessFailure(m_Device, L"Failed to acquire m_PostRenderKeyMutex mutex in OUTPUTMANAGER", L"Error", hr, SystemTransitionsExpectedErrors);
+    }
+
+    // Got mutex, so draw
+    DUPL_RETURN Ret = DrawFrame();
+
+    // Release keyed mutex
+    hr = m_KeyMutex->ReleaseSync(0);
+    if (FAILED(hr))
+    {
+        return ProcessFailure(m_Device, L"Failed to Release Keyed mutex in OUTPUTMANAGER", L"Error", hr, SystemTransitionsExpectedErrors);
+    }
+    
+    return Ret;
+}
+
 
 //
 // Returns shared handle
@@ -522,6 +600,42 @@ DUPL_RETURN OUTPUTMANAGER::DrawFrame()
     ShaderResource->Release();
     ShaderResource = nullptr;
 
+    return DUPL_RETURN_SUCCESS;
+}
+
+
+DUPL_RETURN OUTPUTMANAGER::CopyFrameToSharedMemory()
+{
+    HRESULT hr;
+    
+    D3D11_TEXTURE2D_DESC FrameDesc;
+    m_PostRenderSurf->GetDesc(&FrameDesc);
+
+    
+    D3D11_MAPPED_SUBRESOURCE MappedResource;
+    unsigned int subresource = D3D11CalcSubresource(0, 0, 0);
+    hr = m_DeviceContext->Map(m_PostRenderSurf, subresource, D3D11_MAP_READ, 0, &MappedResource);
+    if (SUCCEEDED(hr))
+    {
+        //resource.pData; // TEXTURE DATA IS HERE
+
+        const int pitch = width << 2;
+        const unsigned char* source = static_cast<const unsigned char*>(MappedResource.pData);
+        unsigned char* dest = sharedmemnory here;
+        for (int i = 0; i < height; ++i)
+        {
+            memcpy(dest, source, width * 4);
+            source += pitch;
+            dest += pitch;
+        }
+
+        m_DeviceContext->Unmap(m_PostRenderSurf, subresource);
+    }
+    else 
+    {
+        return ProcessFailure(m_Device, L"Failed to create vertex buffer when drawing a frame", L"Error", hr, SystemTransitionsExpectedErrors);
+    }
+    
     return DUPL_RETURN_SUCCESS;
 }
 
@@ -1088,6 +1202,18 @@ void OUTPUTMANAGER::CleanRefs()
     {
         m_KeyMutex->Release();
         m_KeyMutex = nullptr;
+    }
+
+    if (m_PostRenderSurf)
+    {
+        m_PostRenderSurf->Release();
+        m_PostRenderSurf = nullptr;
+    }
+
+    if (m_PostRenderKeyMutex)
+    {
+        m_PostRenderKeyMutex->Release();
+        m_PostRenderKeyMutex = nullptr;
     }
 
     if (m_Factory)
